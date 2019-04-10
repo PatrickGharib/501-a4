@@ -6,6 +6,7 @@
 #include <vector> 
 #include <cstdint>
 #include <algorithm>
+#include <string.h>
 using namespace std;
 
 //struct to organize wave info from input 
@@ -28,7 +29,7 @@ typedef struct WAVEHEADER{
 } wavHdr;
 
 //Prototyping
-void convolve(int8_t x[], int N, int8_t h[], int M, int8_t y[], int P);
+void convolve(float x[], int N, float h[], int M, float y[], int P);
 
 int getWaveFileSize(FILE *inFile);
 int8_t* getWavData(FILE *wavFile);
@@ -121,9 +122,15 @@ int main(int argc, char** argv){
     
 
     int64_t outputNumberOfSamples = numberOfSamples1 + numberOfSamples2 - 1;
-    int8_t* outputArray = new int8_t[outputNumberOfSamples];
+    float* outputArray = new float[outputNumberOfSamples];
     cout << numberOfSamples1 << "," << numberOfSamples2 << "," << outputNumberOfSamples;
-    convolve(buffer1, numberOfSamples1, buffer2, numberOfSamples2, outputArray, outputNumberOfSamples);
+    float wavData1[BUFFERSIZE];
+    memcpy(buffer1, wavData1, sizeof(buffer1));
+    float wavData2[BUFFERSIZE2];
+    memcpy(buffer2, wavData2, sizeof (buffer2));
+  //  Buffer.BlockCopy(buffer2, 0, wavData2,0);
+
+    convolve(wavData1, numberOfSamples1, wavData2, numberOfSamples2, outputArray, outputNumberOfSamples);
 
     return 0;
 
