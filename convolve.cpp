@@ -1,5 +1,5 @@
-
-
+#include <ctime>
+#include <array>
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <string.h>
 using namespace std;
+
+
 
 //struct to organize wave info from input 
 typedef struct WAVEHEADER{
@@ -35,6 +37,7 @@ int getWaveFileSize(FILE *inFile);
 int8_t* getWavData(FILE *wavFile);
 
 int main(int argc, char** argv){
+
     //check user input for right input
     if(argc != 4){
         cout << "Usage: convolve <inputfile(.wav)> <IRfile(.wav)> <outputFile(.wav)>"; 
@@ -44,14 +47,12 @@ int main(int argc, char** argv){
     wavHdr wavHeader1;
     wavHdr wavHeader2;
 
-
     int sizeOfHeader1 = sizeof(wavHeader1), lengthOfFile = 0;
     int sizeOfHeader2 = sizeof(wavHeader2);
     
     const char* inputFile = argv[1];
 
     //TODO need to move this to save some mem so that is not just floating
-    //const char* iRFile = argv[2];im
     FILE* wavFile = fopen(inputFile, "r");
 
     if (wavFile == NULL){
@@ -64,27 +65,16 @@ int main(int argc, char** argv){
     uint16_t bytesPerSample1 = wavHeader1.BitsPerSample/8;
     int64_t numberOfSamples1 = wavHeader1.ChunkSize/bytesPerSample1;
     //if (bytesRead > 0){
-        static const uint64_t BUFFERSIZE = wavHeader1.Subchunk2Size;
+        static const uint64_t BUFFERSIZE = wavHeader1.Subchunk2Size/64;
         int8_t* buffer1 = new int8_t[BUFFERSIZE];
-        //TODO add vector record the data part of wave
-        while((bytesRead = fread(buffer1, sizeof buffer1[0], BUFFERSIZE / (sizeof buffer1[0]), wavFile)) > 0){   
-        //cout << "Re " << buffer << " bytes." << endl;
-        }
-         //cout << "penis";
-
-        delete [] buffer1;
-        buffer1 = nullptr;
-       //fileLength = getFileSize(wavFile);
+        while((bytesRead = fread(buffer1, sizeof buffer1[0], BUFFERSIZE / (sizeof buffer1[0]), wavFile)) > 0){}
+    float* wavData1 = new float[BUFFERSIZE];
+        //TODO make this into a method as a refactoring
+    for(int i = 0; i < BUFFERSIZE; i++){wavData1[i] = buffer1[i];}
+        //delete [] buffer1;
+        //buffer1 = nullptr;
+    //fileLength = getFileSize(wavFile);
     //} 
-    
-
-
-
-
-
-
-
-
 
    const char* iRFile = argv[2];
 
@@ -94,7 +84,6 @@ int main(int argc, char** argv){
         fprintf(stderr, "Unable to open IRFile: %s\n", iRFile);
         return 1;
     }
-
     //read in the header
     bytesRead = fread(&wavHeader2, 1, sizeOfHeader2, wavFile);
     uint16_t bytesPerSample2 = wavHeader2.BitsPerSample/8;
@@ -103,13 +92,12 @@ int main(int argc, char** argv){
       
         //TODO extract this into a method so that 
        
-        // cout << bytesPerSample2 << ", " << numberOfSamples2;
-        static const uint64_t BUFFERSIZE2 = wavHeader2.Subchunk2Size;
+       
+        static const uint64_t BUFFERSIZE2 = wavHeader2.Subchunk2Size/64;
         int8_t* buffer2 = new int8_t[BUFFERSIZE2];
     
         //TODO add vector record the data part of wave
         while((bytesRead = fread(buffer2, sizeof buffer2[0], BUFFERSIZE2 / (sizeof buffer2[0]), wavFile)) > 0){   
-            //cout << "Re " << buffer << " bytes." << endl;
         }
        
        // delete [] buffer1;
@@ -120,18 +108,18 @@ int main(int argc, char** argv){
 
     fclose(wavFile);
     
-
+     
     int64_t outputNumberOfSamples = numberOfSamples1 + numberOfSamples2 - 1;
     float* outputArray = new float[outputNumberOfSamples];
-    cout << numberOfSamples1 << "," << numberOfSamples2 << "," << outputNumberOfSamples;
-    float wavData1[BUFFERSIZE];
-    memcpy(buffer1, wavData1, sizeof(buffer1));
-    float wavData2[BUFFERSIZE2];
-    memcpy(buffer2, wavData2, sizeof (buffer2));
-  //  Buffer.BlockCopy(buffer2, 0, wavData2,0);
-
+    
+    float* wavData2 = new float[BUFFERSIZE2];
+    for(int i = 0; i< BUFFERSIZE2;i++){wavData2[i] = buffer2[i];}
     convolve(wavData1, numberOfSamples1, wavData2, numberOfSamples2, outputArray, outputNumberOfSamples);
+    
+    wavHdr outputWaveHeader;
 
+    
+    
     return 0;
 
 }
@@ -142,7 +130,7 @@ int getWaveFileSize(FILE *inFile){
     fileSize = ftell(inFile); fseek(inFile,0, SEEK_SET); 
     return fileSize;
 }
-//void getWaveData(){
+
 
 /*****************************************************************************
 *
@@ -166,7 +154,7 @@ int getWaveFileSize(FILE *inFile){
 void convolve(float x[], int N, float h[], int M, float y[], int P)
 {
   int n, m;
-    
+   
   /*  Make sure the output buffer is the right size: P = N + M - 1  */
   if (P != (N + M - 1)) {
     printf("Output signal vector is the wrong size\n");
@@ -175,21 +163,33 @@ void convolve(float x[], int N, float h[], int M, float y[], int P)
     
     return;
   }
-
   /*  Clear the output buffer y[] to all zero values  */  
   for (n = 0; n < P; n++){
     y[n] = 0.0;
-   // cout << y[n];
+    //cout << y[n];
     }
- cout<<"Penis";
+  int start;
+  int stop;
+  bool flag = true;  
   /*  Do the convolution  */
   /*  Outer loop:  process each input value x[n] in turn  */
   for (n = 0; n < N; n++) {
-    
+    if (flag){
+      start = clock();
+      flag = false;
+    }
     /*  Inner loop:  process x[n] with each sample of h[]  */
     for (m = 0; m < M; m++)
       {y[n+m] += x[n] * h[m];
-       cout<<y[n+m];
+      
+      //cout << y[n+m];
+     }
+
+     //calculate estimated time to completion
+     if (n % 10000 == 0){
+      stop = clock();
+      cout<<"estimated time : " << (((N-n)/10000)*((stop - start)/double(CLOCKS_PER_SEC)))/60 << endl;
+      flag = true;
      }
   }
 }
