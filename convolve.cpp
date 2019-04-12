@@ -18,7 +18,7 @@ typedef struct WAVEHEADER{
     uint8_t RIFF[4];
     uint32_t ChunkSize;
     uint8_t format[4];
-    uint8_t Subchunk1ID;
+    uint8_t Subchunk1ID[4];
     uint32_t Subchunk1Size;
     uint16_t AudioFormat;
     uint16_t NumChannels;
@@ -31,7 +31,7 @@ typedef struct WAVEHEADER{
 } wavHdr;
 
 //Prototyping
-void convolve(float x[], int N, float h[], int M, float y[], int P);
+void convolve(double x[], int N, double h[], int M, double y[], int P);
 
 int getWaveFileSize(FILE *inFile);
 int8_t* getWavData(FILE *wavFile);
@@ -52,7 +52,8 @@ int main(int argc, char** argv){
     
     const char* inputFile = argv[1];
 
-    //TODO need to move this to save some mem so that is not just floating
+
+    //TODO need to move this to save some mem so that is not just doubleing
     FILE* wavFile = fopen(inputFile, "r");
 
     if (wavFile == NULL){
@@ -65,16 +66,18 @@ int main(int argc, char** argv){
     uint16_t bytesPerSample1 = wavHeader1.BitsPerSample/8;
     int64_t numberOfSamples1 = wavHeader1.ChunkSize/bytesPerSample1;
     //if (bytesRead > 0){
-        static const uint64_t BUFFERSIZE = wavHeader1.Subchunk2Size/64;
-        int8_t* buffer1 = new int8_t[BUFFERSIZE];
-        while((bytesRead = fread(buffer1, sizeof buffer1[0], BUFFERSIZE / (sizeof buffer1[0]), wavFile)) > 0){}
-    float* wavData1 = new float[BUFFERSIZE];
+    static const uint64_t BUFFERSIZE = wavHeader1.Subchunk2Size;
+    int8_t* buffer1 = new int8_t[BUFFERSIZE];
+    while((bytesRead = fread(buffer1, sizeof buffer1[0], BUFFERSIZE / (sizeof buffer1[0]), wavFile)) > 0){}
+    double* wavData1 = new double[BUFFERSIZE];
         //TODO make this into a method as a refactoring
     for(int i = 0; i < BUFFERSIZE; i++){wavData1[i] = buffer1[i];}
         //delete [] buffer1;
         //buffer1 = nullptr;
     //fileLength = getFileSize(wavFile);
     //} 
+
+
 
    const char* iRFile = argv[2];
 
@@ -89,35 +92,64 @@ int main(int argc, char** argv){
     uint16_t bytesPerSample2 = wavHeader2.BitsPerSample/8;
     int64_t numberOfSamples2 = wavHeader2.ChunkSize/bytesPerSample2;
    // if (bytesRead > 0){
-      
         //TODO extract this into a method so that 
-       
-       
-        static const uint64_t BUFFERSIZE2 = wavHeader2.Subchunk2Size/64;
+        static const uint64_t BUFFERSIZE2 = wavHeader2.Subchunk2Size;
         int8_t* buffer2 = new int8_t[BUFFERSIZE2];
-    
         //TODO add vector record the data part of wave
-        while((bytesRead = fread(buffer2, sizeof buffer2[0], BUFFERSIZE2 / (sizeof buffer2[0]), wavFile)) > 0){   
-        }
-       
+        while((bytesRead = fread(buffer2, sizeof buffer2[0], BUFFERSIZE2 / (sizeof buffer2[0]), wavFile)) > 0){}
        // delete [] buffer1;
        // buffer1 = nullptr;
         //fileLength = getFileSize(wavFile);
       //}
-
-
     fclose(wavFile);
     
      
     int64_t outputNumberOfSamples = numberOfSamples1 + numberOfSamples2 - 1;
-    float* outputArray = new float[outputNumberOfSamples];
+    double* outputArray = new double[outputNumberOfSamples];
     
-    float* wavData2 = new float[BUFFERSIZE2];
+    double* wavData2 = new double[BUFFERSIZE2];
     for(int i = 0; i< BUFFERSIZE2;i++){wavData2[i] = buffer2[i];}
     convolve(wavData1, numberOfSamples1, wavData2, numberOfSamples2, outputArray, outputNumberOfSamples);
     
     wavHdr outputWaveHeader;
+    outputWaveHeader.RIFF[0] =  'R';
+    outputWaveHeader.RIFF[1] =  'I';
+    outputWaveHeader.RIFF[2] =  'F';
+    outputWaveHeader.RIFF[3] =  'F';
 
+    outputWaveHeader.format[0] = 'W';
+    outputWaveHeader.format[1] = 'A';
+    outputWaveHeader.format[2] = 'V';
+    outputWaveHeader.format[3] = 'E';
+
+    outputWaveHeader.Subchunk1ID[0] = 'f';
+    outputWaveHeader.Subchunk1ID[1] = 'm';
+    outputWaveHeader.Subchunk1ID[2] = 't';
+
+    outputWaveHeader.Subchunk2ID[1] = 'd';
+    outputWaveHeader.Subchunk2ID[2] = 'a';
+    outputWaveHeader.Subchunk2ID[3] = 't';
+    outputWaveHeader.Subchunk2ID[4] = 'a';
+
+    outputWaveHeader.Subchunk2Size = wavHeader1.NumChannels * outputNumberOfSamples * (wavHeader1.BitsPerSample/8);
+    outputWaveHeader.Subchunk1Size = 16;
+    outputWaveHeader.AudioFormat = 1;
+    outputWaveHeader.NumChannels = wavHeader1.NumChannels;
+    outputWaveHeader.ChunkSize = 36 + outputWaveHeader.Subchunk2Size;
+    outputWaveHeader.BlockAlign = wavHeader1.NumChannels * (wavHeader1.BitsPerSample/8);
+    outputWaveHeader.ByteRate = wavHeader1.SampleRate * outputWaveHeader.BlockAlign;
+    outputWaveHeader.BitsPerSample = wavHeader1.BitsPerSample;
+    outputWaveHeader.SampleRate = wavHeader1.SampleRate;
+    
+    cout << outputArray;
+    int sizeOfHeader3 = sizeof(outputWaveHeader);
+    const char* outputFile = argv[3];
+    wavFile = fopen(outputFile, "w"); 
+    fwrite(&outputWaveHeader,1, sizeOfHeader3,wavFile);
+    fwrite(outputArray,outputWaveHeader.BitsPerSample/8,outputWaveHeader.Subchunk2Size/(outputWaveHeader.BitsPerSample/8),wavFile);
+    fclose(wavFile);
+   
+    
     
     
     return 0;
@@ -151,7 +183,7 @@ int getWaveFileSize(FILE *inFile){
 *
 *****************************************************************************/
 
-void convolve(float x[], int N, float h[], int M, float y[], int P)
+void convolve(double x[], int N, double h[], int M, double y[], int P)
 {
   int n, m;
    
