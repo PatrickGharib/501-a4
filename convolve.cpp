@@ -52,11 +52,11 @@ dChunk;
 
 //Prototyping
 void convolve(double x[], int N, double h[], int M, double y[], int P);
-size_t fwriteIntLSB(int data, FILE * fileStream);
-size_t fwriteShortLSB(short data, FILE * fileStream);
+size_t fwriteILSB(int data, FILE * fileStream);
+size_t fwriteSLSB(short data, FILE * fileStream);
 int getWaveFileSize(FILE * inFile);
 int8_t * getWavData(FILE * wavFile);
-void scaleOutputSignal(double * outputArray, short *signal, int outputSize);
+void outPutScaler(double * outputArray, short *sig, int outputSize);
 
 int main(int argc, char ** argv) {
 
@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
 
   const char * inputFile = argv[1];
 //-------------------------------------------------------------------------------------------------------
-  //TODO need to move this to save some mem so that is not just doubleing
+ 
   FILE * wavFile = fopen(inputFile, "rb");
   if (wavFile == NULL) {
     fprintf(stderr, "Unable to open inputFile: %s\n", inputFile);
@@ -92,59 +92,45 @@ int main(int argc, char ** argv) {
   while (true) {
     fread( & dataChunk1, sizeof(dataChunk1), 1, wavFile);
 
-    // cout << dataChunk1.Subchunk2ID[0]<< dataChunk1.Subchunk2ID[1]<< dataChunk1.Subchunk2ID[2]<< dataChunk1.Subchunk2ID[3]<<endl;
-    //printf("SubChunk2ID: %c\n", dataChunk1.Subchunk2ID[0]);
-    printf("%c%c%c%c\t"
-      "%li\n", dataChunk1.Subchunk2ID[0], dataChunk1.Subchunk2ID[1], dataChunk1.Subchunk2ID[2], dataChunk1.Subchunk2ID[3], dataChunk1.Subchunk2Size);
     if ( * (unsigned int * ) & dataChunk1.Subchunk2ID == 0x61746164)
       break;
     //skip chunk data bytes
     fseek(wavFile, dataChunk1.Subchunk2Size, SEEK_CUR);
   }
 
-  //Number of samples
-  int sample_size = wavHeader1.BitsPerSample / 8;
-  int samples_count = dataChunk1.Subchunk2Size * 8 / wavHeader1.BitsPerSample;
-  printf("Samples count = %i\n", samples_count);
-
   char * value = new char[dataChunk1.Subchunk2Size];
-  //memset(value, 0, sizeof(char) * samples_count);
+  
   fread(value, dataChunk1.Subchunk2Size, 1, wavFile);
-  // for(int i = 0; i < dataChunk1.Subchunk2Size; i++ ){
-  //     cout << value[i];
-  // }
+
   fclose(wavFile);
-  short * signal1;
-  int signalSize1;
-  signal1 =NULL;
+  short * sig1;
+  int sigSize1;
+  sig1 =NULL;
   if (wavHeader1.BitsPerSample == 8) {
-    signalSize1 = dataChunk1.Subchunk2Size;
-    cout<<signalSize1<<endl;
-    signal1 = new short[signalSize1];
+    sigSize1 = dataChunk1.Subchunk2Size;
+    cout<<sigSize1<<endl;
+    sig1 = new short[sigSize1];
     for (int i = 0; i < dataChunk1.Subchunk2Size; i++) {
-      signal1[i] = (short)((unsigned char) value[i]);
+      sig1[i] = (short)((unsigned char) value[i]);
     }
   } else {
-    signalSize1 = dataChunk1.Subchunk2Size / 2;
-    cout<<signalSize1<<endl;
-    signal1 = new short[signalSize1];
-    //every 2 chars (i..e. a short) is one s siple
+    sigSize1 = dataChunk1.Subchunk2Size / 2;
+    cout<<sigSize1<<endl;
+    sig1 = new short[sigSize1];
+    
     short shortData;
     for (int i = 0; i < dataChunk1.Subchunk2Size; i += 2) {
       shortData = (short)((unsigned char) value[i]);
-      shortData = (short)((unsigned char) value[i + 1]) * 256; //shift to next 8 bits
-      signal1[i / 2] = shortData;
+      shortData = (short)((unsigned char) value[i + 1]) * 256; 
+      sig1[i / 2] = shortData;
     }
   }
-  //TODO make this into a method as a refactoring
+  
   double * wavData1 = new double[dataChunk1.Subchunk2Size];
 
-  for (int i = 0; i < signalSize1; i++) {
-    wavData1[i] = ((double) signal1[i]) / 32678.0;
-   //cout<<signal1[i]  ;
-
-
-  }
+  for (int i = 0; i < sigSize1; i++) {
+    wavData1[i] = ((double) sig1[i]) / 32678.0;
+   }
  //-------------------------------------------------------------------------------------
 
   const char * iRFile = argv[2];
@@ -164,66 +150,53 @@ int main(int argc, char ** argv) {
   dChunk dataChunk2;
   while (true) {
     fread( & dataChunk2, sizeof(dataChunk2), 1, wavFile);
-
-    // cout << dataChunk1.Subchunk2ID[0]<< dataChunk1.Subchunk2ID[1]<< dataChunk1.Subchunk2ID[2]<< dataChunk1.Subchunk2ID[3]<<endl;
-    //printf("SubChunk2ID: %c\n", dataChunk1.Subchunk2ID[0]);
-    printf("%c%c%c%c\t"
-      "%li\n", dataChunk2.Subchunk2ID[0], dataChunk2.Subchunk2ID[1], dataChunk2.Subchunk2ID[2], dataChunk2.Subchunk2ID[3], dataChunk2.Subchunk2Size);
     if ( * (unsigned int * ) & dataChunk2.Subchunk2ID == 0x61746164)
       break;
     //skip chunk data bytes
     fseek(wavFile, dataChunk2.Subchunk2Size, SEEK_CUR);
   }
 
-  //Number of samples
-  int sample_size2 = wavHeader2.BitsPerSample / 8;
-  int samples_count2 = dataChunk2.Subchunk2Size * 8 / wavHeader2.BitsPerSample;
-  printf("Samples count = %i\n", samples_count2);
-
+  
   char * value2 = new char[dataChunk2.Subchunk2Size];
-  //memset(value, 0, sizeof(char) * samples_count);
   fread(value2, dataChunk2.Subchunk2Size, 1, wavFile);
-  // for(int i = 0; i < dataChunk2.Subchunk2Size; i++ ){
-  //     cout << value2[i];
-  // }
   fclose(wavFile);
 
-  short * signal2;
-  int signalSize2;
-  signal2=NULL;
+  short * sig2;
+  int sigSize2;
+  sig2=NULL;
   if (wavHeader2.BitsPerSample == 8) {
-    signalSize2 = dataChunk2.Subchunk2Size;
-    signal2 = new short[signalSize2];
+    sigSize2 = dataChunk2.Subchunk2Size;
+    sig2 = new short[sigSize2];
     for (int i = 0; i < dataChunk2.Subchunk2Size; i++) {
-      signal2[i] = (short)((unsigned char) value2[i]);
+      sig2[i] = (short)((unsigned char) value2[i]);
     }
   } else {
-    signalSize2 = dataChunk2.Subchunk2Size / 2;
-    signal2 = new short[signalSize2];
-    //every 2 chars (i.e. a short) is one signal sample
+    sigSize2 = dataChunk2.Subchunk2Size / 2;
+    sig2 = new short[sigSize2];
+    
     short shortData2;
     for (int i = 0; i < dataChunk2.Subchunk2Size; i += 2) {
       shortData2 = (short)((unsigned char) value2[i]);
-      shortData2 = (short)((unsigned char) value2[i + 1]) * 256; //shift to next 8 bits
-      signal2[i / 2] = shortData2;
+      shortData2 = (short)((unsigned char) value2[i + 1]) * 256; 
+      sig2[i / 2] = shortData2;
     }
   }
   double * wavData2 = new double[dataChunk2.Subchunk2Size];
-  for (int i = 0; i < signalSize2; i++) {
-    wavData2[i] = ((double) signal2[i]) / 32678.0;
+  for (int i = 0; i < sigSize2; i++) {
+    wavData2[i] = ((double) sig2[i]) / 32678.0;
   } 
   
 //---------------------------------------------------------------------------------------------------------------
-  int outputNumberOfSamples = signalSize1 + signalSize2 - 1;
-  short * outputSignal = new short[outputNumberOfSamples];
+  int outputNumberOfSamples = sigSize1 + sigSize2 - 1;
+  short * outputsig = new short[outputNumberOfSamples];
   double * outputArray = new double[outputNumberOfSamples];
 
-  convolve(wavData1, signalSize1, wavData2, signalSize2, outputArray, outputNumberOfSamples);
+  convolve(wavData1, sigSize1, wavData2, sigSize2, outputArray, outputNumberOfSamples);
     
-  scaleOutputSignal(outputArray, signal1, outputNumberOfSamples);
+  outPutScaler(outputArray, sig1, outputNumberOfSamples);
 
   for (int i = 0; i < outputNumberOfSamples; i++) {
-    outputSignal[i] = (short) outputArray[i];
+    outputsig[i] = (short) outputArray[i];
   }
 
   wavHdr outputWaveHeader;
@@ -240,21 +213,20 @@ int main(int argc, char ** argv) {
 
 
   fputs("RIFF", wavFile);
-  fwriteIntLSB(outputWaveHeader.ChunkSize, wavFile);
+  fwriteILSB(outputWaveHeader.ChunkSize, wavFile);
   fputs("WAVE", wavFile);
   fputs("fmt ", wavFile);
-  fwriteIntLSB(16, wavFile); 
-  fwriteShortLSB(1, wavFile); 
-  fwriteShortLSB(wavHeader1.NumChannels, wavFile);
-  fwriteIntLSB(wavHeader1.SampleRate, wavFile);
-  fwriteIntLSB(outputWaveHeader.ByteRate, wavFile);
-  fwriteShortLSB(outputWaveHeader.BlockAlign, wavFile);
-  fwriteShortLSB(wavHeader1.BitsPerSample, wavFile);
-
+  fwriteILSB(16, wavFile); 
+  fwriteSLSB(1, wavFile); 
+  fwriteSLSB(wavHeader1.NumChannels, wavFile);
+  fwriteILSB(wavHeader1.SampleRate, wavFile);
+  fwriteILSB(outputWaveHeader.ByteRate, wavFile);
+  fwriteSLSB(outputWaveHeader.BlockAlign, wavFile);
+  fwriteSLSB(wavHeader1.BitsPerSample, wavFile);
   fputs("data", wavFile);
-  fwriteIntLSB(outputChunk.Subchunk2Size, wavFile);
+  fwriteILSB(outputChunk.Subchunk2Size, wavFile);
   for (int i = 0; i < outputChunk.Subchunk2Size; i++) {
-    fwriteShortLSB(outputSignal[i], wavFile);
+    fwriteSLSB(outputsig[i], wavFile);
   }
   
   
@@ -334,110 +306,34 @@ void convolve(double x[], int N, double h[], int M, double y[], int P) {
 }
 
 
-size_t fwriteIntLSB(int data, FILE * fileStream) {
+size_t fwriteILSB(int data, FILE * fileStream) {
 
   unsigned char charArray[4];
-
-  //write int (4 bytes) into fileStream in little-endian
-  //little endian writes from least significant byte (LSB) first
   charArray[3] = (unsigned char)((data >> 24) & 0xFF);
   charArray[2] = (unsigned char)((data >> 16) & 0xFF);
   charArray[1] = (unsigned char)((data >> 8) & 0xFF);
   charArray[0] = (unsigned char)(data & 0xFF);
-
-  //use charArray to write values as characters to file
   return fwrite(charArray, sizeof(unsigned char), 4, fileStream);
 }
 
 
-size_t fwriteShortLSB(short data, FILE * fileStream) {
-
+size_t fwriteSLSB(short data, FILE * fileStream) {
   unsigned char charArray[2];
-
-  //write short (2 bytes) into fileStream in little-endian
-  //little endian writes from least significant byte (LSB) first
   charArray[1] = (unsigned char)((data >> 8) & 0xFF);
   charArray[0] = (unsigned char)(data & 0xFF);
-
-  //use charArray to write values as characters to file
   return fwrite(charArray, sizeof(unsigned char), 2, fileStream);
 }
 
-void scaleOutputSignal(double* outputArray, short* signal, int outputSize) {
-  double inputMaxValue = 0.0;
-  double outputMaxValue = 0.0;
-
-  //check for max value in both original and output signals
+void outPutScaler(double* outputArray, short* sig, int outputSize) {
+  double maxIn = 0.0;
+  double maxOut = 0.0;
   for (int i = 0; i < outputSize; i++) {
-    
-    if (signal[i] > inputMaxValue)
-      inputMaxValue = signal[i];
-
-    if (outputArray[i] > outputMaxValue)
-      outputMaxValue = outputArray[i];
+    if (sig[i] > maxIn)
+      maxIn = sig[i];
+    if (outputArray[i] > maxOut)
+      maxOut = outputArray[i];
   }
-
   for (int i = 0; i < outputSize; i++) {
-    outputArray[i] = outputArray[i] / outputMaxValue * inputMaxValue;
+    outputArray[i] = outputArray[i] / maxOut * maxIn;
   }
 }
-// void shortToDoubleConversion(int signalSize, short signal[]){
-//   for (int i = 0; i < signalSize; i++) {
-//     wavData2[i] = ((double) signal[i]) / 32678.0;
-//   }
-// }
-
-/*
- void readWavData(wavHdr &wavHeader1, int sizeOfHeader, double* wavData1, const char* fileName){
-   FILE* wavFile = fopen(fileName, "r");
-
-    if (wavFile == NULL){
-        fprintf(stderr, "Unable to open inputFile: %s\n", fileName);
-        return;
-    }
-  fread(&wavHeader1, 1, sizeOfHeader, wavFile);
-  static const uint64_t BUFFERSIZE = wavHeader1.Subchunk2Size;
-    char* buffer = new char[BUFFERSIZE];
-    wavData1 = new double[BUFFERSIZE];
-    fread(buffer, sizeof buffer[0], BUFFERSIZE / (sizeof buffer[0]), wavFile);
-        //TODO make this into a method as a refactoring
-    for(int i = 0; i < BUFFERSIZE; i++){wavData1[i] = (double) buffer[i]/32678.0;}
-    delete[] buffer; 
-    buffer = nullptr;
-
-    fclose(wavFile);
-}*/
- /*
-  printf("WAV File Header read:\n");
-  printf("File Type: %s\n", wavHeader1.RIFF);
-  printf("File Size: %ld\n", wavHeader1.ChunkSize);
-  printf("WAV Marker: %s\n", wavHeader1.format);)
-  printf("Format Name: %s\n", wavHeader1.Subchunk1ID);
-  printf("Format Length: %ld\n", wavHeader1.Subchunk1Size );
-  printf("Format Type: %hd\n", wavHeader1.AudioFormat);
-  printf("Number of Channels: %hd\n", wavHeader1.NumChannels);
-  printf("Sample Rate: %ld\n", wavHeader1.SampleRate);
-  printf("Sample Rate * Bits/Sample * Channels / 8: %ld\n", wavHeader1.ByteRate);
-  printf("Bits per Sample * Channels / 8.1: %hd\n", wavHeader1.BlockAlign);
-  printf("Bits per Sample: %hd\n", wavHeader1.BitsPerSample);
-  */
-
-  ///delete [] buffer1; 
-   // outputWaveHeader.RIFF[0] =  'R';
-  // outputWaveHeader.RIFF[1] =  'I';
-  // outputWaveHeader.RIFF[2] =  'F';
-  // outputWaveHeader.RIFF[3] =  'F';
-
-  // outputWaveHeader.format[0] = 'W';
-  // outputWaveHeader.format[1] = 'A';
-  // outputWaveHeader.format[2] = 'V';
-  // outputWaveHeader.format[3] = 'E';
-
-  // outputWaveHeader.Subchunk1ID[0] = 'f';
-  // outputWaveHeader.Subchunk1ID[1] = 'm';
-  // outputWaveHeader.Subchunk1ID[2] = 't';
-
-  // outputChunk.Subchunk2ID[1] = 'd';
-  // outputChunk.Subchunk2ID[2] = 'a';
-  // outputChunk.Subchunk2ID[3] = 't';
-  // outputChunk.Subchunk2ID[4] = 'a';
