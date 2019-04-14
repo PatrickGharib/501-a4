@@ -209,14 +209,14 @@ int main(int argc, char ** argv) {
     }
   }
   double * wavData2 = new double[dataChunk2.Subchunk2Size];
-
+  for (int i = 0; i < signalSize2; i++) {
+    wavData2[i] = ((double) signal2[i]) / 32678.0;
+  } 
   
 //---------------------------------------------------------------------------------------------------------------
   int outputNumberOfSamples = signalSize1 + signalSize2 - 1;
   short * outputSignal = new short[outputNumberOfSamples];
   double * outputArray = new double[outputNumberOfSamples];
-
-
 
   convolve(wavData1, signalSize1, wavData2, signalSize2, outputArray, outputNumberOfSamples);
     
@@ -228,54 +228,36 @@ int main(int argc, char ** argv) {
 
   wavHdr outputWaveHeader;
   dChunk outputChunk;
-  outputWaveHeader.ChunkSize = 36 + outputChunk.Subchunk2Size;
-  outputChunk.Subchunk2Size = wavHeader1.NumChannels * outputNumberOfSamples * (wavHeader1.BitsPerSample / 8);
- 
 
-  outputWaveHeader.NumChannels = wavHeader1.NumChannels;
-  
+  outputWaveHeader.ChunkSize = 36 + outputChunk.Subchunk2Size;
   outputWaveHeader.BlockAlign = wavHeader1.NumChannels * (wavHeader1.BitsPerSample / 8);
-  outputWaveHeader.ByteRate =(int) wavHeader1.SampleRate * outputWaveHeader.BlockAlign;
-  outputWaveHeader.BitsPerSample = wavHeader1.BitsPerSample;
-  outputWaveHeader.SampleRate = wavHeader1.SampleRate;
-  //int sizeOfHeader3 = sizeof(outputWaveHeader);
-  int OUTSIZE = outputChunk.Subchunk2Size;
+  outputWaveHeader.ByteRate = (int) wavHeader1.SampleRate * outputWaveHeader.BlockAlign;
+  outputChunk.Subchunk2Size = wavHeader1.NumChannels * outputNumberOfSamples * (wavHeader1.BitsPerSample / 8);
+  
 
   const char * outputFile = argv[3];
   wavFile = fopen(outputFile, "wb");
+
+
   fputs("RIFF", wavFile);
   fwriteIntLSB(outputWaveHeader.ChunkSize, wavFile);
   fputs("WAVE", wavFile);
-
-  //fmt subchunknew vs malloc
   fputs("fmt ", wavFile);
-  fwriteIntLSB(16, wavFile); //subchunk1size should be fixed 16 bytes
-  fwriteShortLSB(1, wavFile); // AudioFormat = 1 for PCM
-  fwriteShortLSB(outputWaveHeader.NumChannels, wavFile);
-  fwriteIntLSB(outputWaveHeader.SampleRate, wavFile);
+  fwriteIntLSB(16, wavFile); 
+  fwriteShortLSB(1, wavFile); 
+  fwriteShortLSB(wavHeader1.NumChannels, wavFile);
+  fwriteIntLSB(wavHeader1.SampleRate, wavFile);
   fwriteIntLSB(outputWaveHeader.ByteRate, wavFile);
   fwriteShortLSB(outputWaveHeader.BlockAlign, wavFile);
-  fwriteShortLSB(outputWaveHeader.BitsPerSample, wavFile);
+  fwriteShortLSB(wavHeader1.BitsPerSample, wavFile);
 
-  //data subchunk
   fputs("data", wavFile);
   fwriteIntLSB(outputChunk.Subchunk2Size, wavFile);
-  for (int i = 0; i < OUTSIZE; i++) {
+  for (int i = 0; i < outputChunk.Subchunk2Size; i++) {
     fwriteShortLSB(outputSignal[i], wavFile);
   }
   
   
-  printf("File Type: %s\n", outputWaveHeader.RIFF);
-  printf("File Size: %ld\n", outputWaveHeader.ChunkSize);
-  printf("WAV Marker: %s\n", outputWaveHeader.format);
-  printf("Format Name: %s\n", outputWaveHeader.Subchunk1ID);
-  printf("Format Length: %ld\n", outputWaveHeader.Subchunk1Size );
-  printf("Format Type: %hd\n", outputWaveHeader.AudioFormat);
-  printf("Number of Channels: %hd\n", outputWaveHeader.NumChannels);
-  printf("Sample Rate: %ld\n", outputWaveHeader.SampleRate);
-  printf("Sample Rate * Bits/Sample * Channels / 8: %ld\n", outputWaveHeader.ByteRate);
-  printf("Bits per Sample * Channels / 8.1: %hd\n", outputWaveHeader.BlockAlign);
-  printf("Bits per Sample: %hd\n", outputWaveHeader.BitsPerSample);// fwrite(out,outputWaveHeader.BitsPerSample/8,OUTSIZE,wavFile);
   fclose(wavFile);
   return 0;
 
@@ -399,11 +381,12 @@ void scaleOutputSignal(double* outputArray, short* signal, int outputSize) {
     outputArray[i] = outputArray[i] / outputMaxValue * inputMaxValue;
   }
 }
-void shortToDoubleConversion(int signalSize, short signal[]{
-  for (int i = 0; i < signalSize; i++) {
-    wavData2[i] = ((double) signal[i]) / 32678.0;
-  }
-}
+// void shortToDoubleConversion(int signalSize, short signal[]){
+//   for (int i = 0; i < signalSize; i++) {
+//     wavData2[i] = ((double) signal[i]) / 32678.0;
+//   }
+// }
+
 /*
  void readWavData(wavHdr &wavHeader1, int sizeOfHeader, double* wavData1, const char* fileName){
    FILE* wavFile = fopen(fileName, "r");
