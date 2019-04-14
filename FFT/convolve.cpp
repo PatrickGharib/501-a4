@@ -294,9 +294,7 @@ void convolve(double* wavDatFreq1, double *wavDatFreq2, double* outFreq, int arr
         outFreq[i] = wavDatFreq1[i] * wavDatFreq2[i] - wavDatFreq1[i+1] * wavDatFreq2[i+1]; 
         outFreq[i+1] = wavDatFreq1[i+1] * wavDatFreq2[i] + wavDatFreq1[i] * wavDatFreq2[i+1]; 
      
-        if((i%100000) == 0)
-            printf("Convolving %d...\n", i);
-    }
+       
 }
 //-----------------------------------------------------------------------------------------------
 
